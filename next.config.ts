@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Set environment to edge runtime to avoid node-specific dependencies
+  output: "standalone",
 };
 
 export default nextConfig;
