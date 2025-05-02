@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -38,7 +38,8 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+// Create a component that uses useSearchParams
+const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -100,6 +101,148 @@ export default function LoginPage() {
   };
 
   return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl text-center">Sign In</CardTitle>
+        <CardDescription className="text-center">
+          Enter your credentials to access your account
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isVerified && (
+          <div className="bg-green-50 text-green-800 text-sm p-3 rounded-md mb-4">
+            Email verified successfully! You can now log in.
+          </div>
+        )}
+
+        <Button
+          variant="outline"
+          className="w-full mb-6"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <img src="/google.svg" alt="Google" className="mr-2 h-4 w-4" />
+          )}
+          Continue with Google
+        </Button>
+
+        <div className="relative mb-6">
+          <Separator />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="bg-card px-2 text-sm text-muted-foreground">
+              Or continue with email
+            </span>
+          </div>
+        </div>
+
+        {loginError && (
+          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4">
+            {loginError}
+          </div>
+        )}
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="your@email.com"
+                      type="email"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-locaposty-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-locaposty-primary hover:bg-locaposty-primary/90"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign in"
+              )}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+      <CardFooter className="flex justify-center">
+        <p className="text-sm text-center">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/signup"
+            className="text-locaposty-primary hover:underline font-medium"
+          >
+            Sign up
+          </Link>
+        </p>
+      </CardFooter>
+    </Card>
+  );
+};
+
+// Main page component with Suspense boundary
+export default function LoginPage() {
+  return (
     <div className="min-h-screen bg-locaposty-bg flex flex-col">
       <Header />
       <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -114,149 +257,15 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl text-center">Sign In</CardTitle>
-              <CardDescription className="text-center">
-                Enter your credentials to access your account
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isVerified && (
-                <div className="bg-green-50 text-green-800 text-sm p-3 rounded-md mb-4">
-                  Email verified successfully! You can now log in.
-                </div>
-              )}
-
-              <Button
-                variant="outline"
-                className="w-full mb-6"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <img
-                    src="/google.svg"
-                    alt="Google"
-                    className="mr-2 h-4 w-4"
-                  />
-                )}
-                Continue with Google
-              </Button>
-
-              <div className="relative mb-6">
-                <Separator />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="bg-card px-2 text-sm text-muted-foreground">
-                    Or continue with email
-                  </span>
-                </div>
+          <Suspense
+            fallback={
+              <div className="h-96 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-locaposty-primary" />
               </div>
-
-              {loginError && (
-                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4">
-                  {loginError}
-                </div>
-              )}
-
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-4"
-                >
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="your@email.com"
-                            type="email"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showPassword ? "text" : "password"}
-                              placeholder="••••••••"
-                              {...field}
-                              disabled={isLoading}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? (
-                                <EyeOff size={16} />
-                              ) : (
-                                <Eye size={16} />
-                              )}
-                            </Button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="text-right">
-                    <Link
-                      href="/forgot-password"
-                      className="text-sm text-locaposty-primary hover:underline"
-                    >
-                      Forgot password?
-                    </Link>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full bg-locaposty-primary hover:bg-locaposty-primary/90"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign in"
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-            <CardFooter className="flex justify-center">
-              <p className="text-sm text-center">
-                Don&apos;t have an account?{" "}
-                <Link
-                  href="/signup"
-                  className="text-locaposty-primary hover:underline font-medium"
-                >
-                  Sign up
-                </Link>
-              </p>
-            </CardFooter>
-          </Card>
+            }
+          >
+            <LoginForm />
+          </Suspense>
         </div>
       </main>
       <Footer />
