@@ -24,11 +24,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -306,6 +301,11 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [openDatePicker, setOpenDatePicker] = useState(false);
+  const [openEventStartPicker, setOpenEventStartPicker] = useState(false);
+  const [openEventEndPicker, setOpenEventEndPicker] = useState(false);
+  const [openOfferStartPicker, setOpenOfferStartPicker] = useState(false);
+  const [openOfferEndPicker, setOpenOfferEndPicker] = useState(false);
 
   // Initialize form with post data if editing
   useEffect(() => {
@@ -780,30 +780,24 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
                 <div className="space-y-2">
                   <Label htmlFor="event-start">Event Start</Label>
-                  <div className="flex gap-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {eventStart ? (
-                            format(eventStart, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={eventStart || undefined}
-                          onSelect={(date) => setEventStart(date || null)}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <div className="flex gap-2 relative">
+                    {/* Custom date picker trigger */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenEventStartPicker(!openEventStartPicker);
+                      }}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {eventStart ? (
+                        format(eventStart, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
 
                     <Input
                       type="time"
@@ -831,35 +825,55 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({
                       }}
                       className="w-24"
                     />
+
+                    {/* Calendar modal with overlay */}
+                    {openEventStartPicker && (
+                      <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center"
+                        onClick={() => setOpenEventStartPicker(false)}
+                      >
+                        <div className="absolute inset-0 bg-black bg-opacity-25" />
+                        <div
+                          className="bg-white p-2 rounded-md shadow-lg z-[10000]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Calendar
+                            mode="single"
+                            selected={eventStart || undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                setEventStart(date);
+                                setOpenEventStartPicker(false);
+                              }
+                            }}
+                            initialFocus
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="event-end">Event End</Label>
-                  <div className="flex gap-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {eventEnd ? (
-                            format(eventEnd, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={eventEnd || undefined}
-                          onSelect={(date) => setEventEnd(date || null)}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <div className="flex gap-2 relative">
+                    {/* Custom date picker trigger */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenEventEndPicker(!openEventEndPicker);
+                      }}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {eventEnd ? (
+                        format(eventEnd, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
 
                     <Input
                       type="time"
@@ -884,6 +898,32 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({
                       }}
                       className="w-24"
                     />
+
+                    {/* Calendar modal with overlay */}
+                    {openEventEndPicker && (
+                      <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center"
+                        onClick={() => setOpenEventEndPicker(false)}
+                      >
+                        <div className="absolute inset-0 bg-black bg-opacity-25" />
+                        <div
+                          className="bg-white p-2 rounded-md shadow-lg z-[10000]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Calendar
+                            mode="single"
+                            selected={eventEnd || undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                setEventEnd(date);
+                                setOpenEventEndPicker(false);
+                              }
+                            }}
+                            initialFocus
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -896,56 +936,100 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
                 <div className="space-y-2">
                   <Label htmlFor="offer-start">Offer Start Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                  <div className="relative">
+                    {/* Custom date picker trigger */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenOfferStartPicker(!openOfferStartPicker);
+                      }}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {offerStart ? (
+                        format(offerStart, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+
+                    {/* Calendar modal with overlay */}
+                    {openOfferStartPicker && (
+                      <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center"
+                        onClick={() => setOpenOfferStartPicker(false)}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {offerStart ? (
-                          format(offerStart, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={offerStart || undefined}
-                        onSelect={(date) => setOfferStart(date || null)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                        <div className="absolute inset-0 bg-black bg-opacity-25" />
+                        <div
+                          className="bg-white p-2 rounded-md shadow-lg z-[10000]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Calendar
+                            mode="single"
+                            selected={offerStart || undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                setOfferStart(date);
+                                setOpenOfferStartPicker(false);
+                              }
+                            }}
+                            initialFocus
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="offer-end">Offer End Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                  <div className="relative">
+                    {/* Custom date picker trigger */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenOfferEndPicker(!openOfferEndPicker);
+                      }}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {offerEnd ? (
+                        format(offerEnd, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+
+                    {/* Calendar modal with overlay */}
+                    {openOfferEndPicker && (
+                      <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center"
+                        onClick={() => setOpenOfferEndPicker(false)}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {offerEnd ? (
-                          format(offerEnd, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={offerEnd || undefined}
-                        onSelect={(date) => setOfferEnd(date || null)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                        <div className="absolute inset-0 bg-black bg-opacity-25" />
+                        <div
+                          className="bg-white p-2 rounded-md shadow-lg z-[10000]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Calendar
+                            mode="single"
+                            selected={offerEnd || undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                setOfferEnd(date);
+                                setOpenOfferEndPicker(false);
+                              }
+                            }}
+                            initialFocus
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -976,37 +1060,60 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({
                   </button>
                 )}
               </div>
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {scheduleDate ? (
-                        format(scheduleDate, "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={scheduleDate}
-                      onSelect={(date) => setScheduleDate(date || undefined)}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+              <div className="flex gap-2 relative">
+                {/* Custom date picker trigger */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenDatePicker(!openDatePicker);
+                  }}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {scheduleDate ? (
+                    format(scheduleDate, "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+
                 <Input
                   type="time"
                   value={scheduleTime}
                   onChange={(e) => setScheduleTime(e.target.value)}
                   className="w-24"
                 />
+
+                {/* Calendar modal with overlay */}
+                {openDatePicker && (
+                  <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center"
+                    onClick={() => setOpenDatePicker(false)}
+                  >
+                    <div className="absolute inset-0 bg-black bg-opacity-25" />
+                    <div
+                      className="bg-white p-2 rounded-md shadow-lg z-[10000]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Calendar
+                        mode="single"
+                        selected={scheduleDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setScheduleDate(date);
+                            setOpenDatePicker(false);
+                          }
+                        }}
+                        disabled={(date) =>
+                          date < new Date(new Date().setHours(0, 0, 0, 0))
+                        }
+                        initialFocus
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </TabsContent>

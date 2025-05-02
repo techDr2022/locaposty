@@ -19,7 +19,7 @@ export default function OrganizationStructuredData() {
               priceType: "https://schema.org/FreeTrial",
               unitText: "day",
               price: "0",
-              priceCurrency: "USD",
+              priceCurrency: "INR",
               referenceQuantity: {
                 "@type": "QuantitativeValue",
                 value: "14",
