@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es2017",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": [
+    "worker.ts",
+    "local-worker.ts",
+    "add-test-job.ts",
+    "test-job.ts",
+    "test-worker.ts"
+  ],
+  "exclude": ["node_modules"]
+}
