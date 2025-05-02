@@ -40,7 +40,7 @@ const TestimonialsSection = () => {
       position: "CEO",
       company: "techDr",
       avatar: "/images/raviteja-ceo.jpg",
-      companyLogo: "/images/techdr-logo.png",
+      companyLogo: "/images/techdr-logo.webp",
       rating: 5,
     },
     {
@@ -50,7 +50,7 @@ const TestimonialsSection = () => {
       position: "Digital Marketing Expert",
       company: "LK Hospitals",
       avatar: "/images/gowthami-expert.jpg",
-      companyLogo: "/images/lk-hospitals-logo.png",
+      companyLogo: "/images/LK-hospitals-logo.webp",
       rating: 5,
     },
     {
