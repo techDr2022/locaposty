@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import SubscriptionPlans from "@/components/SubscriptionPlans";
+import { Loader2 } from "lucide-react";
 
-export default function UpgradePage() {
+// Extract the component that uses useSearchParams
+const UpgradeContent = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -92,5 +94,20 @@ export default function UpgradePage() {
 
       <SubscriptionPlans />
     </div>
+  );
+};
+
+// Main page component with Suspense boundary
+export default function UpgradePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      }
+    >
+      <UpgradeContent />
+    </Suspense>
   );
 }

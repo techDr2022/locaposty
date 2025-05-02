@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -54,7 +54,8 @@ const signupSchema = z
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
-export default function SignupPage() {
+// Extract the signup form into a separate component that uses useSearchParams
+const SignupFormComponent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
@@ -203,6 +204,231 @@ export default function SignupPage() {
   };
 
   return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
+        <CardDescription className="text-center">
+          {planType
+            ? `Fill in your details to start your free trial`
+            : `Fill in your details to create an account`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {signupSuccess && (
+          <div className="bg-green-50 text-green-800 text-sm p-3 rounded-md mb-4">
+            {signupSuccess}
+          </div>
+        )}
+
+        <Button
+          variant="outline"
+          className="w-full mb-6"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading || startingTrial}
+        >
+          {isLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <img src="/google.svg" alt="Google" className="mr-2 h-4 w-4" />
+          )}
+          Continue with Google
+        </Button>
+
+        <div className="relative mb-6">
+          <Separator />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="bg-card px-2 text-sm text-muted-foreground">
+              Or continue with email
+            </span>
+          </div>
+        </div>
+
+        {signupError && (
+          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4">
+            {signupError}
+          </div>
+        )}
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="John Doe"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="your@email.com"
+                      type="email"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || startingTrial}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : startingTrial ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Starting your trial...
+                </>
+              ) : planType ? (
+                "Sign up & Start Free Trial"
+              ) : (
+                "Sign Up"
+              )}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+      <CardFooter className="flex flex-col space-y-4">
+        <p className="text-sm text-center text-locaposty-text-medium">
+          By signing up, you agree to our{" "}
+          <Link
+            href="/terms"
+            className="text-locaposty-primary hover:underline"
+          >
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            className="text-locaposty-primary hover:underline"
+          >
+            Privacy Policy
+          </Link>
+        </p>
+        <p className="text-sm text-center">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="text-locaposty-primary hover:underline font-medium"
+          >
+            Sign in
+          </Link>
+        </p>
+      </CardFooter>
+    </Card>
+  );
+};
+
+// Main page component with Suspense boundary
+export default function SignupPage() {
+  const [planType, setPlanType] = useState<string | null>(null);
+
+  // We need to handle the case where there might be a plan type in the URL
+  // This works as a fallback display mechanism, without using useSearchParams directly
+  useEffect(() => {
+    // Try to get the plan from the URL manually
+    const url = new URL(window.location.href);
+    const plan = url.searchParams.get("plan");
+    if (plan) {
+      setPlanType(plan);
+    }
+  }, []);
+
+  return (
     <div className="min-h-screen bg-locaposty-bg flex flex-col">
       <Header />
       <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -224,219 +450,15 @@ export default function SignupPage() {
             )}
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
-              <CardDescription className="text-center">
-                {planType
-                  ? `Fill in your details to start your free trial`
-                  : `Fill in your details to create an account`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {signupSuccess && (
-                <div className="bg-green-50 text-green-800 text-sm p-3 rounded-md mb-4">
-                  {signupSuccess}
-                </div>
-              )}
-
-              <Button
-                variant="outline"
-                className="w-full mb-6"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading || startingTrial}
-              >
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <img
-                    src="/google.svg"
-                    alt="Google"
-                    className="mr-2 h-4 w-4"
-                  />
-                )}
-                Continue with Google
-              </Button>
-
-              <div className="relative mb-6">
-                <Separator />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="bg-card px-2 text-sm text-muted-foreground">
-                    Or continue with email
-                  </span>
-                </div>
+          <Suspense
+            fallback={
+              <div className="h-96 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-locaposty-primary" />
               </div>
-
-              {signupError && (
-                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4">
-                  {signupError}
-                </div>
-              )}
-
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-4"
-                >
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="John Doe"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="your@email.com"
-                            type="email"
-                            {...field}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showPassword ? "text" : "password"}
-                              placeholder="••••••••"
-                              {...field}
-                              disabled={isLoading}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? (
-                                <EyeOff size={16} />
-                              ) : (
-                                <Eye size={16} />
-                              )}
-                            </Button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm Password</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showConfirmPassword ? "text" : "password"}
-                              placeholder="••••••••"
-                              {...field}
-                              disabled={isLoading}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground"
-                              onClick={() =>
-                                setShowConfirmPassword(!showConfirmPassword)
-                              }
-                            >
-                              {showConfirmPassword ? (
-                                <EyeOff size={16} />
-                              ) : (
-                                <Eye size={16} />
-                              )}
-                            </Button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isLoading || startingTrial}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating account...
-                      </>
-                    ) : startingTrial ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Starting your trial...
-                      </>
-                    ) : planType ? (
-                      "Sign up & Start Free Trial"
-                    ) : (
-                      "Sign Up"
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-            <CardFooter className="flex flex-col space-y-4">
-              <p className="text-sm text-center text-locaposty-text-medium">
-                By signing up, you agree to our{" "}
-                <Link
-                  href="/terms"
-                  className="text-locaposty-primary hover:underline"
-                >
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link
-                  href="/privacy"
-                  className="text-locaposty-primary hover:underline"
-                >
-                  Privacy Policy
-                </Link>
-              </p>
-              <p className="text-sm text-center">
-                Already have an account?{" "}
-                <Link
-                  href="/login"
-                  className="text-locaposty-primary hover:underline font-medium"
-                >
-                  Sign in
-                </Link>
-              </p>
-            </CardFooter>
-          </Card>
+            }
+          >
+            <SignupFormComponent />
+          </Suspense>
         </div>
       </main>
       <Footer />
