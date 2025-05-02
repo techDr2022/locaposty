@@ -9,11 +9,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const openSans = Open_Sans({ subsets: ["latin"], variable: "--font-opensans" });
 
 const siteConfig = {
-  name: "LocaPosty",
+  name: "Locaposty",
   description:
-    "Automate and optimize your Google Business Profile management. Schedule posts, respond to reviews, and manage multiple locations effortlessly.",
-  url: "https://locaposty.com",
-  ogImage: "https://locaposty.com/og-image.jpg",
+    "Locaposty is the best Google My Business (GMB) post scheduling tool with automated review replies and SEO performance tracking — built for local business growth.",
+  url: "https://www.locaposty.com",
+  ogImage: "https://www.locaposty.com/images/og-image.png",
 };
 
 export const viewport: Viewport = {
@@ -25,32 +25,31 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "LocaPosty - Google Business Profile Manager",
-    template: "%s | LocaPosty",
+    default: "Locaposty | Best GMB Post Scheduler & Review Management Tool",
+    template: "%s | Locaposty",
   },
   description: siteConfig.description,
   keywords: [
+    "GMB post scheduler",
+    "Google My Business automation",
+    "auto review response",
+    "GMB review tool",
+    "local SEO software",
+    "schedule GMB posts",
+    "review management tool",
+    "Locaposty",
     "Google Business Profile",
     "GBP management",
     "business listing",
     "scheduling tools",
     "automated posts",
-    "GBP scheduling",
-    "GBP automation",
-    "GBP management tools",
-    "GBP management software",
-    "GBP management platform",
-    "GBP management solution",
-    "GBP management software",
-    "local SEO",
-    "automated posts",
     "location management",
     "review management",
     "multi-location business",
   ],
-  authors: [{ name: "LocaPosty Team" }],
-  creator: "LocaPosty",
-  publisher: "LocaPosty",
+  authors: [{ name: "Locaposty Team" }],
+  creator: "Locaposty Team",
+  publisher: "Locaposty",
   robots: "index, follow",
   metadataBase: new URL(siteConfig.url),
   alternates: {
@@ -60,29 +59,32 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteConfig.url,
-    title: "LocaPosty - Google Business Profile Manager",
-    description: siteConfig.description,
+    title: "Locaposty | GMB Scheduler, Review Responder & SEO Tracker",
+    description:
+      "Schedule Google My Business posts, automate review replies, and track local SEO performance with Locaposty — the all-in-one local business tool.",
     siteName: siteConfig.name,
     images: [
       {
         url: siteConfig.ogImage,
         width: 1200,
         height: 630,
-        alt: "LocaPosty - Automate your Google Business Profile management",
+        alt: "Locaposty - Google My Business management platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "LocaPosty - Google Business Profile Manager",
-    description: siteConfig.description,
+    title: "Locaposty | GMB Post Scheduler & Review Automation Tool",
+    description:
+      "Automate Google Business posts, reply to reviews, and track performance — Locaposty helps grow your local SEO effortlessly.",
     images: [siteConfig.ogImage],
     creator: "@locaposty",
   },
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon-16x16.png",
-    apple: "/apple-touch-icon.png",
+    icon: [{ url: "/favicon/favicon.ico", sizes: "any" }],
+    shortcut: "/favicon/favicon-16x16.png",
+    apple: [{ url: "/favicon/favicon.ico" }],
+    other: [{ url: "/favicon/favicon.ico", type: "image/x-icon" }],
   },
   manifest: "/site.webmanifest",
 };

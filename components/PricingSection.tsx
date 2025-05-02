@@ -21,12 +21,80 @@ declare global {
 // Function to fetch user's location based on IP
 const fetchUserLocation = async () => {
   try {
-    const response = await fetch("https://ipapi.co/json/");
+    // First, try with ipapi.co with browser-like headers
+    const response = await fetch("https://ipapi.co/json/", {
+      signal: AbortSignal.timeout(5000), // Increase timeout slightly
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://locaposty.vercel.app/",
+        Origin: "https://locaposty.vercel.app",
+      },
+      credentials: "same-origin",
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+
     const data = await response.json();
     return data.country;
   } catch (error) {
-    console.error("Error fetching user location:", error);
-    return null;
+    console.error("Error fetching user location from ipapi.co:", error);
+
+    // Fallback to alternative API
+    try {
+      const fallbackResponse = await fetch(
+        "https://api.ipgeolocation.io/ipgeo?apiKey=e02ad1d79102428e914c18d4952b546a",
+        {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            Accept: "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            Referer: "https://locaposty.vercel.app/",
+          },
+          method: "GET",
+          signal: AbortSignal.timeout(5000),
+        }
+      );
+
+      if (!fallbackResponse.ok) {
+        throw new Error(
+          `Fallback API responded with status: ${fallbackResponse.status}`
+        );
+      }
+
+      const fallbackData = await fallbackResponse.json();
+      return fallbackData.country_code2;
+    } catch (fallbackError) {
+      console.error(
+        "Error fetching from fallback location API:",
+        fallbackError
+      );
+
+      // Try a third option - CloudFlare-based service
+      try {
+        const cfResponse = await fetch(
+          "https://www.cloudflare.com/cdn-cgi/trace"
+        );
+        if (cfResponse.ok) {
+          const text = await cfResponse.text();
+          const locMatch = text.match(/loc=([A-Z]{2})/);
+          if (locMatch && locMatch[1]) {
+            return locMatch[1];
+          }
+        }
+        throw new Error("Could not parse country from CloudFlare trace");
+      } catch (cfError) {
+        console.error("Error with CloudFlare location detection:", cfError);
+        // Provide a default value if all APIs fail
+        return "IN"; // Default to IN if we can't determine location
+      }
+    }
   }
 };
 
@@ -63,11 +131,37 @@ const PricingSection = () => {
     }
   }, [session]);
 
-  // Fetch user location on component mount
+  // Fetch user location on component mount with caching
   useEffect(() => {
     const getUserCountry = async () => {
-      const country = await fetchUserLocation();
-      setUserCountry(country);
+      try {
+        // Check if we have a cached country in localStorage
+        const cachedCountry = localStorage.getItem("user_country");
+        const cacheTimestamp = localStorage.getItem("user_country_timestamp");
+
+        // Use cache if it exists and is less than 24 hours old
+        if (cachedCountry && cacheTimestamp) {
+          const cacheTime = parseInt(cacheTimestamp);
+          const now = Date.now();
+          // Cache valid for 24 hours (86400000 ms)
+          if (now - cacheTime < 86400000) {
+            console.log("Using cached country:", cachedCountry);
+            setUserCountry(cachedCountry);
+            return;
+          }
+        }
+
+        // If no valid cache, fetch from API
+        const country = await fetchUserLocation();
+        setUserCountry(country);
+
+        // Cache the result
+        localStorage.setItem("user_country", country);
+        localStorage.setItem("user_country_timestamp", Date.now().toString());
+      } catch (error) {
+        console.error("Could not fetch user location:", error);
+        setUserCountry("IN"); // Default fallback
+      }
     };
     getUserCountry();
   }, []);
