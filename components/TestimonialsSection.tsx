@@ -1,8 +1,18 @@
 import React from "react";
 import { Star } from "lucide-react";
 
+interface Testimonial {
+  quote: string;
+  author: string;
+  position: string;
+  company: string;
+  avatar: string;
+  companyLogo: string;
+  rating: number;
+}
+
 const TestimonialsSection = () => {
-  const testimonials = [
+  const testimonials: Testimonial[] = [
     {
       quote:
         "Best tool for GMB post scheduling and review management. Locaposty is the perfect GMB scheduler! I can easily schedule Google Business posts in advance and reply to customer reviews automatically. It's saved me so much time and helps boost our local SEO rankings. Highly recommend it for local businesses and digital marketers.",
@@ -30,7 +40,7 @@ const TestimonialsSection = () => {
       position: "CEO",
       company: "techDr",
       avatar: "/images/raviteja-ceo.jpg",
-      companyLogo: "https://www.techdr.in/images/logo.png",
+      companyLogo: "/images/techdr-logo.png",
       rating: 5,
     },
     {
@@ -40,7 +50,7 @@ const TestimonialsSection = () => {
       position: "Digital Marketing Expert",
       company: "LK Hospitals",
       avatar: "/images/gowthami-expert.jpg",
-      companyLogo: "https://www.lkhospital.com/images/LK-hospitals-logo.png",
+      companyLogo: "/images/lk-hospitals-logo.png",
       rating: 5,
     },
     {
@@ -114,16 +124,15 @@ const TestimonialsSection = () => {
           <p className="text-xl font-semibold text-locaposty-text-dark mr-4">
             Trusted by businesses like:
           </p>
-          {/* Placeholder logos - in a real app, replace with actual client logos */}
-          {testimonials.map((_, i) => (
+          {testimonials.map((testimonial, i) => (
             <div
               key={i}
               className="h-10 w-32 bg-white/50 rounded flex items-center justify-center text-locaposty-text-medium font-medium"
             >
               <img
-                src={testimonials[i].companyLogo}
-                alt={testimonials[i].company}
-                className=" w-64 h-12 mr-4  object-fill"
+                src={testimonial.companyLogo}
+                alt={testimonial.company}
+                className="w-64 h-12 mr-4 object-contain"
               />
             </div>
           ))}
