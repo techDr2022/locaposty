@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -110,20 +110,9 @@ interface PostStats {
   total: number;
 }
 
-const MainDashboardClient = () => {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+// Create a separate component for the error banner that uses useSearchParams
+const ErrorBanner = () => {
   const searchParams = useSearchParams();
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [statsData, setStatsData] = useState<StatsDataType>(undefined);
-  const [postStats, setPostStats] = useState<PostStats | undefined>(undefined);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [reviews] = useState<Review[]>([]); // Not using setter for now
-  const [activities] = useState<Activity[]>([]); // Not using setter for now
-  const [showTrialBanner, setShowTrialBanner] = useState(false);
-  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
   const [showErrorBanner, setShowErrorBanner] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -139,6 +128,52 @@ const MainDashboardClient = () => {
       );
     }
   }, [searchParams]);
+
+  // Function to dismiss the error banner
+  const dismissErrorBanner = () => {
+    setShowErrorBanner(false);
+    // Remove the error from the URL without reloading
+    const url = new URL(window.location.href);
+    url.searchParams.delete("error");
+    window.history.replaceState({}, "", url);
+  };
+
+  if (!showErrorBanner || !errorMessage) {
+    return null;
+  }
+
+  return (
+    <Alert variant="destructive" className="mb-4">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle>Error</AlertTitle>
+      <AlertDescription className="flex justify-between items-center">
+        <span>{errorMessage}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={dismissErrorBanner}
+          className="h-6 w-6 p-0 rounded-full"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+};
+
+const MainDashboardClient = () => {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [statsData, setStatsData] = useState<StatsDataType>(undefined);
+  const [postStats, setPostStats] = useState<PostStats | undefined>(undefined);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [reviews] = useState<Review[]>([]); // Not using setter for now
+  const [activities] = useState<Activity[]>([]); // Not using setter for now
+  const [showTrialBanner, setShowTrialBanner] = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
 
   // Calculate trial days remaining
   useEffect(() => {
@@ -160,15 +195,6 @@ const MainDashboardClient = () => {
       }
     }
   }, [session]);
-
-  // Function to dismiss the error banner
-  const dismissErrorBanner = () => {
-    setShowErrorBanner(false);
-    // Remove the error from the URL without reloading
-    const url = new URL(window.location.href);
-    url.searchParams.delete("error");
-    window.history.replaceState({}, "", url);
-  };
 
   // Function to handle location change
   const handleLocationChange = (locationId: string) => {
@@ -360,24 +386,10 @@ const MainDashboardClient = () => {
       onLocationChange={handleLocationChange}
       showLocationSelector={true}
     >
-      {/* Error Banner */}
-      {showErrorBanner && errorMessage && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription className="flex justify-between items-center">
-            <span>{errorMessage}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={dismissErrorBanner}
-              className="h-6 w-6 p-0 rounded-full"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Wrap the ErrorBanner component with Suspense */}
+      <Suspense fallback={<div className="mb-4 h-16"></div>}>
+        <ErrorBanner />
+      </Suspense>
 
       {/* Trial Banner */}
       {showTrialBanner && trialDaysLeft !== null && (
