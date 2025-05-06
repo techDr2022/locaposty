@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,6 +29,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PricingSection from "@/components/PricingSection";
 
 // Form validation schema
 const signupSchema = z
@@ -56,10 +57,8 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 // Extract the signup form into a separate component that uses useSearchParams
 const SignupFormComponent = () => {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const [startingTrial, setStartingTrial] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
@@ -89,58 +88,6 @@ const SignupFormComponent = () => {
     },
   });
 
-  // Start trial after signup
-  const startTrialWithPlan = async (email: string, password: string) => {
-    if (!planType) return;
-
-    setStartingTrial(true);
-
-    try {
-      // Add a slight delay to ensure user record is fully created
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // First sign in with the newly created account
-      const signInResult = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (signInResult?.error) {
-        throw new Error(signInResult.error);
-      }
-
-      // Add another slight delay to ensure the session is established
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Then create the trial subscription
-      const trialResponse = await fetch("/api/subscriptions/create-trial", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ planType }),
-      });
-
-      const trialResult = await trialResponse.json();
-
-      if (!trialResponse.ok) {
-        throw new Error(trialResult.message || "Failed to start trial");
-      }
-
-      // Redirect to dashboard or callbackUrl
-      router.push(callbackUrl);
-    } catch (error) {
-      setSignupError(
-        error instanceof Error
-          ? `Account created, but couldn't start trial: ${error.message}`
-          : "Account created, but couldn't start trial"
-      );
-    } finally {
-      setStartingTrial(false);
-    }
-  };
-
   async function onSubmit(data: SignupFormValues) {
     setIsLoading(true);
     setSignupError(null);
@@ -155,6 +102,7 @@ const SignupFormComponent = () => {
           name: data.name,
           email: data.email,
           password: data.password,
+          planType,
         }),
       });
 
@@ -164,17 +112,12 @@ const SignupFormComponent = () => {
         throw new Error(result.message || "Something went wrong");
       }
 
-      // If we have a plan parameter, start trial automatically
-      if (planType) {
-        await startTrialWithPlan(data.email, data.password);
-      } else {
-        // Show regular success message if no plan
-        setSignupSuccess(
-          "Account created successfully! Please check your email to verify your account before logging in."
-        );
-        // Clear the form
-        form.reset();
-      }
+      // Show success message
+      setSignupSuccess(
+        "Account created successfully! Please check your email to verify your account before logging in."
+      );
+      // Clear the form
+      form.reset();
     } catch (error) {
       setSignupError(
         error instanceof Error ? error.message : "Something went wrong"
@@ -191,7 +134,7 @@ const SignupFormComponent = () => {
       if (planType) {
         // Note: Additional server-side logic would be needed to handle this after Google auth
         await signIn("google", {
-          callbackUrl: `/api/auth/oauth-callback?plan=${planType}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+          callbackUrl: `/api/auth/oauth-callback?signupPlan=${planType}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
         });
       } else {
         await signIn("google", { callbackUrl });
@@ -224,7 +167,7 @@ const SignupFormComponent = () => {
           variant="outline"
           className="w-full mb-6"
           onClick={handleGoogleSignIn}
-          disabled={isLoading || startingTrial}
+          disabled={isLoading}
         >
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -358,23 +301,14 @@ const SignupFormComponent = () => {
               )}
             />
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading || startingTrial}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating account...
                 </>
-              ) : startingTrial ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Starting your trial...
-                </>
               ) : planType ? (
-                "Sign up & Start Free Trial"
+                "Sign up & Verify Email"
               ) : (
                 "Sign Up"
               )}
@@ -415,51 +349,75 @@ const SignupFormComponent = () => {
 
 // Main page component with Suspense boundary
 export default function SignupPage() {
+  const searchParams = useSearchParams();
   const [planType, setPlanType] = useState<string | null>(null);
+  const [showPlans, setShowPlans] = useState(false);
+  const provider = searchParams.get("provider");
 
-  // We need to handle the case where there might be a plan type in the URL
-  // This works as a fallback display mechanism, without using useSearchParams directly
   useEffect(() => {
-    // Try to get the plan from the URL manually
-    const url = new URL(window.location.href);
-    const plan = url.searchParams.get("plan");
+    const plan = searchParams.get("plan");
     if (plan) {
       setPlanType(plan);
+      setShowPlans(false);
+    } else if (provider === "google") {
+      // If provider is Google but no plan, still show the signup form
+      setShowPlans(false);
+    } else {
+      // If no plan is specified and no provider, show pricing plans
+      setShowPlans(true);
     }
-  }, []);
+  }, [searchParams, provider]);
 
   return (
     <div className="min-h-screen bg-locaposty-bg flex flex-col">
       <Header />
-      <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-locaposty-text-dark">
-              Create your{" "}
-              <span className="text-locaposty-primary">LocaPosty</span> account
-            </h1>
-            <p className="mt-2 text-locaposty-text-medium">
-              Join thousands of businesses managing their Google Business
-              Profiles
-            </p>
-            {planType && (
-              <p className="mt-2 text-locaposty-primary font-medium">
-                You&apos;re signing up for the {planType.toLowerCase()} plan
-                with a free trial
+      <main className="flex-1 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        {showPlans ? (
+          <>
+            <div className="text-center mb-8 w-full">
+              <h1 className="text-3xl font-bold text-locaposty-text-dark">
+                Choose your{" "}
+                <span className="text-locaposty-primary">LocaPosty</span> plan
+              </h1>
+              <p className="mt-2 text-locaposty-text-medium">
+                Select a plan to start your free trial
               </p>
-            )}
-          </div>
+            </div>
+            <div className="w-full">
+              <PricingSection isSignup={true} />
+            </div>
+          </>
+        ) : (
+          <div className="w-full max-w-md space-y-8">
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-locaposty-text-dark">
+                Create your{" "}
+                <span className="text-locaposty-primary">LocaPosty</span>{" "}
+                account
+              </h1>
+              <p className="mt-2 text-locaposty-text-medium">
+                Join thousands of businesses managing their Google Business
+                Profiles
+              </p>
+              {planType && (
+                <p className="mt-2 text-locaposty-primary font-medium">
+                  You&apos;re signing up for the {planType.toLowerCase()} plan
+                  with a free trial
+                </p>
+              )}
+            </div>
 
-          <Suspense
-            fallback={
-              <div className="h-96 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-locaposty-primary" />
-              </div>
-            }
-          >
-            <SignupFormComponent />
-          </Suspense>
-        </div>
+            <Suspense
+              fallback={
+                <div className="h-96 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-locaposty-primary" />
+                </div>
+              }
+            >
+              <SignupFormComponent />
+            </Suspense>
+          </div>
+        )}
       </main>
       <Footer />
     </div>

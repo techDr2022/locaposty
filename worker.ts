@@ -12,9 +12,7 @@ console.log("======= WORKER STARTING =======");
 console.log("Environment:", process.env.NODE_ENV || "development");
 
 try {
-  const prisma = new PrismaClient({
-    log: ["error", "warn"],
-  });
+  const prisma = new PrismaClient();
   const app = express();
   const port = process.env.PORT || 3001;
 

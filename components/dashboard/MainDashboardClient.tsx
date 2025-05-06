@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -163,6 +163,7 @@ const ErrorBanner = () => {
 
 const MainDashboardClient = () => {
   const { data: session, status } = useSession();
+  // router is kept for future navigation needs
   const router = useRouter();
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
@@ -172,29 +173,80 @@ const MainDashboardClient = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [reviews] = useState<Review[]>([]); // Not using setter for now
   const [activities] = useState<Activity[]>([]); // Not using setter for now
-  const [showTrialBanner, setShowTrialBanner] = useState(false);
-  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
 
-  // Calculate trial days remaining
+  // We keep the trial status calculation for logging purposes
   useEffect(() => {
-    if (
-      session?.user?.subscriptionStatus === "TRIALING" &&
-      session.user.trialEndsAt
-    ) {
-      const trialEnd = new Date(session.user.trialEndsAt);
-      const now = new Date();
+    if (status === "authenticated" && session?.user) {
+      console.log("Checking trial status from session data");
+      console.log("Session user:", session.user);
 
-      // If trial is in the future
-      if (trialEnd > now) {
-        // Calculate days remaining
-        const diffTime = Math.abs(trialEnd.getTime() - now.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      // Check if user is in trial status
+      if (
+        session.user.subscriptionStatus === "TRIALING" &&
+        session.user.trialEndsAt
+      ) {
+        try {
+          // Parse trial end date
+          const trialEndStr = session.user.trialEndsAt.toString();
+          const trialEnd = new Date(trialEndStr);
+          const now = new Date();
 
-        setTrialDaysLeft(diffDays);
-        setShowTrialBanner(true);
+          console.log("Trial ends at:", trialEnd);
+          console.log("Current time:", now);
+
+          // Validate the date
+          if (isNaN(trialEnd.getTime())) {
+            console.error("Invalid trial end date format in session");
+            return;
+          }
+
+          // If trial is still active
+          if (trialEnd > now) {
+            // Calculate days remaining
+            const diffTime = trialEnd.getTime() - now.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            console.log("Trial days remaining:", diffDays);
+
+            // We don't need to show the banner here anymore since it's in the layout
+            // setTrialDaysLeft(diffDays);
+            // setShowTrialBanner(true);
+
+            // Show toast notification for low days remaining
+            if (diffDays <= 3 && diffDays > 0) {
+              toast.warning(
+                `Your free trial ends in ${diffDays} ${diffDays === 1 ? "day" : "days"}. Please upgrade to continue using all features.`,
+                {
+                  duration: 5000,
+                  id: "trial-expiry-warning", // Prevent duplicate toasts
+                }
+              );
+            }
+          } else {
+            // Trial has ended
+            console.log("Trial has ended");
+
+            // Show toast notification for expired trial
+            toast.error(
+              "Your free trial has ended. Please upgrade to continue using all features.",
+              {
+                duration: 7000,
+                id: "trial-expired", // Prevent duplicate toasts
+              }
+            );
+          }
+        } catch (error) {
+          console.error("Error calculating trial days:", error);
+        }
+      } else {
+        // User not in trial - hide banner
+        console.log(
+          "User not in trial: ",
+          session.user.subscriptionStatus || "no subscription status"
+        );
       }
     }
-  }, [session]);
+  }, [session, status]);
 
   // Function to handle location change
   const handleLocationChange = (locationId: string) => {
@@ -386,35 +438,10 @@ const MainDashboardClient = () => {
       onLocationChange={handleLocationChange}
       showLocationSelector={true}
     >
-      {/* Wrap the ErrorBanner component with Suspense */}
-      <Suspense fallback={<div className="mb-4 h-16"></div>}>
+      <div className="p-4 md:p-6 space-y-6">
+        {/* Error Banner */}
         <ErrorBanner />
-      </Suspense>
 
-      {/* Trial Banner */}
-      {showTrialBanner && trialDaysLeft !== null && (
-        <Alert className="mb-4 bg-amber-50 border-amber-200">
-          <AlertTitle className="text-amber-600">
-            Trial Subscription Active
-          </AlertTitle>
-          <AlertDescription className="flex justify-between items-center">
-            <span>
-              You have <span className="font-bold">{trialDaysLeft}</span>{" "}
-              {trialDaysLeft === 1 ? "day" : "days"} left in your trial. Upgrade
-              now to continue using all features after your trial ends.
-            </span>
-            <Button
-              onClick={() => router.push("/pricing")}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
-              size="sm"
-            >
-              Upgrade Now
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="p-6">
         <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-locaposty-text-dark">

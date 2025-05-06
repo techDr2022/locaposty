@@ -1,18 +1,11 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import {
-  PrismaClient,
-  SubscriptionPlan,
-  SubscriptionStatus,
-} from "@/lib/generated/prisma";
+import { SubscriptionPlan, SubscriptionStatus } from "@/lib/generated/prisma";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { DefaultSession } from "next-auth";
-
-const prisma = new PrismaClient({
-  log: ["error", "warn"],
-});
+import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -73,23 +66,28 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
+      console.log("JWT callback called");
       if (user) {
         token.id = user.id;
 
         // Fetch subscription data when generating JWT
-        const userData = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: {
-            subscriptionPlan: true,
-            subscriptionStatus: true,
-            trialEndsAt: true,
-          },
-        });
+        try {
+          const userData = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: {
+              subscriptionPlan: true,
+              subscriptionStatus: true,
+              trialEndsAt: true,
+            },
+          });
 
-        if (userData) {
-          token.subscriptionPlan = userData.subscriptionPlan;
-          token.subscriptionStatus = userData.subscriptionStatus;
-          token.trialEndsAt = userData.trialEndsAt;
+          if (userData) {
+            token.subscriptionPlan = userData.subscriptionPlan;
+            token.subscriptionStatus = userData.subscriptionStatus;
+            token.trialEndsAt = userData.trialEndsAt;
+          }
+        } catch (error) {
+          console.error("Error fetching user data in JWT callback:", error);
         }
       }
 
@@ -100,32 +98,77 @@ export const authOptions: NextAuthOptions = {
 
         if (now > trialEndsAt) {
           // Trial has expired, update user status in database
-          await prisma.user.update({
-            where: { id: token.id as string },
-            data: {
-              subscriptionStatus: SubscriptionStatus.PAST_DUE,
-            },
-          });
+          try {
+            await prisma.user.update({
+              where: { id: token.id as string },
+              data: {
+                subscriptionStatus: SubscriptionStatus.PAST_DUE,
+              },
+            });
 
-          // Update token with new status
-          token.subscriptionStatus = SubscriptionStatus.PAST_DUE;
+            // Update token with new status
+            token.subscriptionStatus = SubscriptionStatus.PAST_DUE;
+          } catch (error) {
+            console.error(
+              "Error updating trial status in JWT callback:",
+              error
+            );
+          }
         }
       }
 
       return token;
     },
     async session({ session, token }) {
+      console.log("Session callback called");
       if (token && session.user) {
         session.user.id = token.id as string;
 
-        // Add subscription data to the session
-        session.user.subscriptionPlan = token.subscriptionPlan as
-          | SubscriptionPlan
-          | undefined;
-        session.user.subscriptionStatus = token.subscriptionStatus as
-          | SubscriptionStatus
-          | undefined;
-        session.user.trialEndsAt = token.trialEndsAt as Date | null;
+        // Always refresh subscription data on session creation
+        try {
+          const userData = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: {
+              subscriptionPlan: true,
+              subscriptionStatus: true,
+              trialEndsAt: true,
+            },
+          });
+
+          if (userData) {
+            // Add subscription data to the session
+            session.user.subscriptionPlan = userData.subscriptionPlan as
+              | SubscriptionPlan
+              | undefined;
+            session.user.subscriptionStatus = userData.subscriptionStatus as
+              | SubscriptionStatus
+              | undefined;
+            session.user.trialEndsAt = userData.trialEndsAt;
+          } else {
+            // Fallback to token data if user not found
+            session.user.subscriptionPlan = token.subscriptionPlan as
+              | SubscriptionPlan
+              | undefined;
+            session.user.subscriptionStatus = token.subscriptionStatus as
+              | SubscriptionStatus
+              | undefined;
+            session.user.trialEndsAt = token.trialEndsAt as Date | null;
+          }
+        } catch (error) {
+          console.error(
+            "Error refreshing subscription data in session callback:",
+            error
+          );
+
+          // Fallback to token data on error
+          session.user.subscriptionPlan = token.subscriptionPlan as
+            | SubscriptionPlan
+            | undefined;
+          session.user.subscriptionStatus = token.subscriptionStatus as
+            | SubscriptionStatus
+            | undefined;
+          session.user.trialEndsAt = token.trialEndsAt as Date | null;
+        }
       }
       return session;
     },

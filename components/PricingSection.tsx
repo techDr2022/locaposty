@@ -5,7 +5,6 @@ import { Check, X, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Script from "next/script";
 
 // Define a type for the window with Razorpay
 declare global {
@@ -98,38 +97,18 @@ const fetchUserLocation = async () => {
   }
 };
 
-const PricingSection = () => {
+// Define component props
+interface PricingSectionProps {
+  isSignup?: boolean;
+}
+
+const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
   const [isAnnual, setIsAnnual] = useState(true);
   const { data: session } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<string | null>(null);
-  const [userSubscription, setUserSubscription] = useState<{
-    subscriptionId?: string;
-    status?: string;
-    plan?: string;
-    trialEndsAt?: string;
-    currentPeriodEnd?: string;
-    orderId?: string;
-  } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isRazorpayLoaded, setIsRazorpayLoaded] = useState(false);
   const [userCountry, setUserCountry] = useState<string | null>(null);
-
-  // Get user subscription status on component mount
-  useEffect(() => {
-    if (session?.user) {
-      fetch("/api/subscriptions/status")
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
-            setUserSubscription(data.data);
-          }
-        })
-        .catch((err) => {
-          console.error("Error fetching subscription status:", err);
-        });
-    }
-  }, [session]);
 
   // Fetch user location on component mount with caching
   useEffect(() => {
@@ -220,7 +199,7 @@ const PricingSection = () => {
       ctaColor: "bg-locaposty-secondary",
     },
     {
-      name: "🚀 Pro",
+      name: "🚀Enterprise",
       planType: "ENTERPRISE",
       description: "For agencies and businesses with multiple locations",
       price: {
@@ -254,7 +233,12 @@ const PricingSection = () => {
   const startFreeTrial = async (planType: string) => {
     if (!session?.user) {
       // Redirect to signup page with plan info in URL parameters
-      router.push(`/signup?plan=${planType}&callbackUrl=/dashboard`);
+      if (isSignup) {
+        // Already on signup page, just update URL with plan type
+        router.push(`/signup?plan=${planType}&callbackUrl=/dashboard`);
+      } else {
+        router.push(`/signup?plan=${planType}&callbackUrl=/dashboard`);
+      }
       return;
     }
 
@@ -262,6 +246,7 @@ const PricingSection = () => {
     setError(null);
 
     try {
+      // User is already logged in, attempt to create trial directly
       const response = await fetch("/api/subscriptions/create-trial", {
         method: "POST",
         headers: {
@@ -273,109 +258,22 @@ const PricingSection = () => {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "Failed to start free trial");
+        throw new Error(result.message || "Failed to start trial");
       }
 
-      setUserSubscription(result.data);
+      // On success, redirect to dashboard
       router.push("/dashboard");
     } catch (error) {
+      console.error("Error starting trial:", error);
       setError(error instanceof Error ? error.message : "An error occurred");
+
+      // Still redirect to dashboard, even if there was an error
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 3000);
     } finally {
       setIsLoading(null);
     }
-  };
-
-  // Define Razorpay response interface
-  interface RazorpayResponse {
-    razorpay_payment_id: string;
-    razorpay_order_id: string;
-    razorpay_signature: string;
-  }
-
-  // Handle payment after trial
-  const handlePayment = (plan: {
-    name: string;
-    planType: string;
-    description?: string;
-    price: {
-      monthly: number;
-      annual: number;
-      display: string;
-    };
-    features?: Array<{ name: string; value: string | boolean }>;
-    cta?: string;
-    isPopular?: boolean;
-    ctaColor?: string;
-  }) => {
-    if (!isRazorpayLoaded) {
-      setError("Payment system is loading. Please try again.");
-      return;
-    }
-
-    if (!session?.user) {
-      router.push("/login?callbackUrl=/pricing");
-      return;
-    }
-
-    setIsLoading(plan.planType);
-
-    // Configure Razorpay options
-    const options = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      subscription_id: userSubscription?.subscriptionId,
-      order_id: userSubscription?.orderId,
-      name: "LocaPosty",
-      description: `${plan.name} Plan Subscription`,
-      handler: async function (response: RazorpayResponse) {
-        // Handle successful payment
-        try {
-          const verifyResponse = await fetch(
-            "/api/subscriptions/verify-payment",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-                razorpay_subscription_id: userSubscription?.subscriptionId,
-                userId: session.user.id,
-              }),
-            }
-          );
-
-          const result = await verifyResponse.json();
-
-          if (result.success) {
-            // Update user subscription in state
-            setUserSubscription(result.data);
-            router.push("/dashboard");
-          } else {
-            setError(result.message || "Payment verification failed");
-          }
-        } catch (
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          _
-        ) {
-          setError("Failed to verify payment");
-        } finally {
-          setIsLoading(null);
-        }
-      },
-      prefill: {
-        name: session.user.name,
-        email: session.user.email,
-      },
-      theme: {
-        color: "#7c3aed",
-      },
-    };
-
-    // Create Razorpay instance and open checkout
-    const razorpay = new window.Razorpay(options);
-    razorpay.open();
   };
 
   // Function to render feature value
@@ -397,6 +295,26 @@ const PricingSection = () => {
 
   // Render button based on subscription status
   const renderActionButton = (plan: (typeof pricingPlans)[0]) => {
+    // If user is on signup page, change the button text
+    if (isSignup) {
+      return (
+        <Button
+          className={`w-full ${plan.ctaColor} text-white hover:opacity-90`}
+          onClick={() => startFreeTrial(plan.planType)}
+          disabled={isLoading === plan.planType}
+        >
+          {isLoading === plan.planType ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Please wait...
+            </>
+          ) : (
+            "Select This Plan"
+          )}
+        </Button>
+      );
+    }
+
     // If no user is logged in
     if (!session?.user) {
       return (
@@ -417,111 +335,7 @@ const PricingSection = () => {
       );
     }
 
-    // If user has a subscription
-    if (userSubscription) {
-      // If subscription is inactive, treat like no subscription
-      if (userSubscription.status === "INACTIVE" || !userSubscription.status) {
-        return (
-          <Button
-            className={`w-full ${plan.ctaColor} text-white hover:opacity-90`}
-            onClick={() => startFreeTrial(plan.planType)}
-            disabled={isLoading === plan.planType}
-          >
-            {isLoading === plan.planType ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Please wait...
-              </>
-            ) : (
-              plan.cta
-            )}
-          </Button>
-        );
-      }
-
-      // If on free trial for this plan
-      if (
-        userSubscription.status === "TRIALING" &&
-        userSubscription.plan === plan.planType
-      ) {
-        return (
-          <Button
-            className={`w-full ${plan.ctaColor} text-white hover:opacity-90`}
-            onClick={() => handlePayment(plan)}
-            disabled={isLoading === plan.planType}
-          >
-            {isLoading === plan.planType ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              "Subscribe Now"
-            )}
-          </Button>
-        );
-      }
-
-      // If active subscription for this plan
-      if (
-        userSubscription.status === "ACTIVE" &&
-        userSubscription.plan === plan.planType
-      ) {
-        return (
-          <Button
-            className="w-full bg-green-600 text-white hover:opacity-90"
-            variant="outline"
-            disabled
-          >
-            Current Plan
-          </Button>
-        );
-      }
-
-      // If has another active or trialing plan
-      if (
-        userSubscription.status === "ACTIVE" ||
-        userSubscription.status === "TRIALING"
-      ) {
-        return (
-          <Button
-            className={`w-full ${plan.ctaColor} text-white hover:opacity-90`}
-            variant="outline"
-            disabled={isLoading === plan.planType}
-            onClick={() => handlePayment(plan)}
-          >
-            {isLoading === plan.planType ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              "Switch Plan"
-            )}
-          </Button>
-        );
-      }
-
-      // For any other subscription status (PAST_DUE, CANCELED, EXPIRED)
-      return (
-        <Button
-          className={`w-full ${plan.ctaColor} text-white hover:opacity-90`}
-          onClick={() => startFreeTrial(plan.planType)}
-          disabled={isLoading === plan.planType}
-        >
-          {isLoading === plan.planType ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Please wait...
-            </>
-          ) : (
-            plan.cta
-          )}
-        </Button>
-      );
-    }
-
-    // Default - no subscription yet
+    // If user is logged in
     return (
       <Button
         className={`w-full ${plan.ctaColor} text-white hover:opacity-90`}
@@ -542,58 +356,91 @@ const PricingSection = () => {
 
   return (
     <>
-      {/* Razorpay Script */}
-      <Script
-        id="razorpay-checkout-js"
-        src="https://checkout.razorpay.com/v1/checkout.js"
-        onLoad={() => setIsRazorpayLoaded(true)}
-      />
-
       <section id="pricing" className="bg-white py-20">
         <div className="container max-w-5xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-locaposty-text-dark mb-4">
-              Simple, Transparent{" "}
-              <span className="text-locaposty-primary">Pricing</span>
-            </h2>
-            <p className="text-lg text-locaposty-text-medium max-w-3xl mx-auto mb-8">
-              Choose the plan that works best for your business needs.
-            </p>
+          {!isSignup && (
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold text-locaposty-text-dark mb-4">
+                Simple, Transparent{" "}
+                <span className="text-locaposty-primary">Pricing</span>
+              </h2>
+              <p className="text-lg text-locaposty-text-medium max-w-3xl mx-auto mb-8">
+                Choose the plan that works best for your business needs.
+              </p>
 
-            {/* Billing toggle */}
-            <div className="flex items-center justify-center space-x-4 mb-8">
-              <span
-                className={`text-sm font-medium ${
-                  !isAnnual
-                    ? "text-locaposty-text-dark"
-                    : "text-locaposty-text-medium"
-                }`}
-              >
-                Monthly
-              </span>
-              <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-              <div className="flex items-center">
+              {/* Billing toggle */}
+              <div className="flex items-center justify-center space-x-4 mb-8">
                 <span
                   className={`text-sm font-medium ${
-                    isAnnual
+                    !isAnnual
                       ? "text-locaposty-text-dark"
                       : "text-locaposty-text-medium"
                   }`}
                 >
-                  Annual
+                  Monthly
                 </span>
-                <span className="ml-2 bg-locaposty-secondary/20 text-locaposty-secondary text-xs font-medium px-2 py-0.5 rounded">
-                  Save 20%
-                </span>
+                <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+                <div className="flex items-center">
+                  <span
+                    className={`text-sm font-medium ${
+                      isAnnual
+                        ? "text-locaposty-text-dark"
+                        : "text-locaposty-text-medium"
+                    }`}
+                  >
+                    Annual
+                  </span>
+                  <span className="ml-2 bg-locaposty-secondary/20 text-locaposty-secondary text-xs font-medium px-2 py-0.5 rounded">
+                    Save 20%
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {error && (
-              <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md">
-                {error}
+              {error && (
+                <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md">
+                  {error}
+                </div>
+              )}
+            </div>
+          )}
+
+          {isSignup && (
+            <>
+              {/* Simplified billing toggle for signup page */}
+              <div className="flex items-center justify-center space-x-4 mb-8">
+                <span
+                  className={`text-sm font-medium ${
+                    !isAnnual
+                      ? "text-locaposty-text-dark"
+                      : "text-locaposty-text-medium"
+                  }`}
+                >
+                  Monthly
+                </span>
+                <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+                <div className="flex items-center">
+                  <span
+                    className={`text-sm font-medium ${
+                      isAnnual
+                        ? "text-locaposty-text-dark"
+                        : "text-locaposty-text-medium"
+                    }`}
+                  >
+                    Annual
+                  </span>
+                  <span className="ml-2 bg-locaposty-secondary/20 text-locaposty-secondary text-xs font-medium px-2 py-0.5 rounded">
+                    Save 20%
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+
+              {error && (
+                <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md">
+                  {error}
+                </div>
+              )}
+            </>
+          )}
 
           {/* Pricing Table View */}
           <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200">

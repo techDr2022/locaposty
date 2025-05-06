@@ -9,6 +9,7 @@ const PROTECTED_PATHS = [
   "/posts",
   "/reviews",
   "/analytics",
+  "/upgrade",
   "/reports",
   "/settings",
 ];
@@ -68,6 +69,7 @@ export async function middleware(request: NextRequest) {
       // Redirect to upgrade page with callback URL
       const url = new URL("/upgrade", request.url);
       url.searchParams.set("callbackUrl", pathname);
+      console.log("Redirecting to upgrade page", url);
       return NextResponse.redirect(url);
     }
 

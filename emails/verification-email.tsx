@@ -16,14 +16,16 @@ import { getBaseUrl } from "@/lib/utils";
 interface VerificationEmailProps {
   username: string;
   verificationToken: string;
+  planType?: string;
 }
 
 export const VerificationEmail: React.FC<VerificationEmailProps> = ({
   username,
   verificationToken,
+  planType,
 }) => {
   const baseUrl = getBaseUrl();
-  const verificationUrl = `${baseUrl}/api/auth/verify?token=${verificationToken}`;
+  const verificationUrl = `${baseUrl}/api/auth/verify?token=${verificationToken}${planType ? `&plan=${planType}` : ""}`;
 
   return (
     <Html>
@@ -37,6 +39,13 @@ export const VerificationEmail: React.FC<VerificationEmailProps> = ({
             <Text style={text}>
               Thanks for signing up for LocaPosty! Please verify your email
               address to get full access to your account.
+              {planType && (
+                <span>
+                  {" "}
+                  You&apos;ll be able to start your free {planType} plan trial
+                  after verification.
+                </span>
+              )}
             </Text>
             <Button style={button} href={verificationUrl}>
               Verify Email

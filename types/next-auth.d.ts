@@ -11,7 +11,10 @@ declare module "next-auth" {
       id: string;
       subscriptionPlan?: SubscriptionPlan;
       subscriptionStatus?: SubscriptionStatus;
+      trialStartedAt?: Date | null;
       trialEndsAt?: Date | null;
+      currentPeriodStart?: Date | null;
+      currentPeriodEnd?: Date | null;
     } & DefaultSession["user"];
   }
 }

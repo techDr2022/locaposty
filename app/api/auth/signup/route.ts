@@ -1,12 +1,8 @@
-import { PrismaClient } from "@/lib/generated/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import * as z from "zod";
 import { generateVerificationToken } from "@/lib/utils";
-
-const prisma = new PrismaClient({
-  log: ["error", "warn"],
-});
+import { prisma } from "@/lib/prisma";
 
 // Validation schema
 const signupSchema = z.object({
@@ -24,8 +20,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // Extract planType separately as it's not part of the validation schema
+    const { planType, ...userData } = body;
+
     // Validate input
-    const validationResult = signupSchema.safeParse(body);
+    const validationResult = signupSchema.safeParse(userData);
 
     if (!validationResult.success) {
       return NextResponse.json(
@@ -68,7 +67,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Send verification email
+    const userId = user.id;
+
+    // Send verification email with optional planType
     const emailResponse = await fetch(`${req.nextUrl.origin}/api/email/send`, {
       method: "POST",
       headers: {
@@ -78,19 +79,23 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         verificationToken: emailVerificationToken,
+        planType,
       }),
     });
 
     if (!emailResponse.ok) {
+      await prisma.user.delete({
+        where: { id: userId },
+      });
       console.error("Failed to send verification email");
     }
 
-    // Remove password from response
+    // Remove sensitive data from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const {
-      password: _pwd,
+      password: _,
       emailVerificationToken: _token,
-      ...userWithoutPassword
+      ...userWithoutSensitiveData
     } = user;
 
     return NextResponse.json(
@@ -98,7 +103,7 @@ export async function POST(req: NextRequest) {
         success: true,
         message:
           "User registered successfully. Please check your email to verify your account.",
-        user: userWithoutPassword,
+        user: userWithoutSensitiveData,
         emailSent: emailResponse.ok,
       },
       { status: 201 }

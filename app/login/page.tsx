@@ -7,7 +7,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -43,11 +42,31 @@ const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const planType = searchParams.get("plan");
   const isVerified = searchParams.get("verified") === "true";
   const verifiedEmail = searchParams.get("email");
+  const errorType = searchParams.get("error");
+  const provider = searchParams.get("provider");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Set login error if error parameter is present
+  React.useEffect(() => {
+    if (errorType === "UserNotFound" && provider === "google") {
+      setLoginError(
+        "Account not found. Please sign up first to use Google login."
+      );
+    }
+  }, [errorType, provider]);
+
+  const handleSignup = () => {
+    if (provider === "google") {
+      router.push(`/signup`);
+    } else {
+      router.push("/signup");
+    }
+  };
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -79,12 +98,28 @@ const LoginForm = () => {
         throw new Error(result.error || "Invalid credentials");
       }
 
-      router.push(callbackUrl);
+      // If plan type is specified, redirect to create trial
+      if (planType) {
+        try {
+          // Redirect to the oauth-callback endpoint which handles trial creation
+          // and redirects to the dashboard
+          const redirectUrl = `/api/auth/oauth-callback?plan=${planType}&callbackUrl=${encodeURIComponent(callbackUrl)}`;
+          router.push(redirectUrl);
+          return;
+        } catch (error) {
+          console.error("Error starting trial:", error);
+          // Fallback - redirect to dashboard
+          router.push(callbackUrl);
+          return;
+        }
+      } else {
+        // No plan type, just redirect to dashboard
+        router.push(callbackUrl);
+      }
     } catch (error) {
       setLoginError(
         error instanceof Error ? error.message : "Something went wrong"
       );
-    } finally {
       setIsLoading(false);
     }
   }
@@ -92,7 +127,14 @@ const LoginForm = () => {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      await signIn("google", { callbackUrl });
+      // If plan is specified, pass it to the OAuth callback
+      if (planType) {
+        await signIn("google", {
+          callbackUrl: `/api/auth/oauth-callback?plan=${planType}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+        });
+      } else {
+        await signIn("google", { callbackUrl });
+      }
     } catch (error: unknown) {
       setLoginError("Failed to sign in with Google");
       console.error("Google sign-in error:", error);
@@ -105,13 +147,37 @@ const LoginForm = () => {
       <CardHeader>
         <CardTitle className="text-2xl text-center">Sign In</CardTitle>
         <CardDescription className="text-center">
-          Enter your credentials to access your account
+          {planType
+            ? `Sign in to start your free ${planType.toLowerCase()} plan trial`
+            : "Enter your credentials to access your account"}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {isVerified && (
           <div className="bg-green-50 text-green-800 text-sm p-3 rounded-md mb-4">
             Email verified successfully! You can now log in.
+          </div>
+        )}
+
+        {planType && (
+          <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-md mb-4">
+            You&apos;re signing in to start a free trial of the{" "}
+            {planType.toLowerCase()} plan
+          </div>
+        )}
+
+        {loginError && (
+          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4">
+            {loginError}
+            {errorType === "UserNotFound" && (
+              <Button
+                variant="link"
+                className="ml-2 p-0 h-auto text-sm text-locaposty-primary"
+                onClick={handleSignup}
+              >
+                Sign up now
+              </Button>
+            )}
           </div>
         )}
 
@@ -137,12 +203,6 @@ const LoginForm = () => {
             </span>
           </div>
         </div>
-
-        {loginError && (
-          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4">
-            {loginError}
-          </div>
-        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

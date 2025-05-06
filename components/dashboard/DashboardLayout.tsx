@@ -21,6 +21,8 @@ import {
   LogOut,
   Search,
   Check,
+  Clock,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,6 +45,97 @@ type Location = {
   gmbLocationName: string;
   address?: string;
   logoUrl?: string;
+};
+
+// Component to display trial status in the dashboard
+const TrialStatusBar = () => {
+  const { data: session } = useSession();
+  const [daysLeft, setDaysLeft] = useState<number | null>(null);
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    if (
+      session?.user?.subscriptionStatus === "TRIALING" &&
+      session.user.trialEndsAt
+    ) {
+      try {
+        const trialEndStr = session.user.trialEndsAt.toString();
+        const trialEnd = new Date(trialEndStr);
+        const now = new Date();
+
+        if (isNaN(trialEnd.getTime())) {
+          console.error("Invalid trial end date format in session");
+          return;
+        }
+
+        if (trialEnd > now) {
+          const diffTime = trialEnd.getTime() - now.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          setDaysLeft(diffDays);
+        } else {
+          setDaysLeft(0);
+        }
+      } catch (error) {
+        console.error("Error calculating trial days in layout:", error);
+      }
+    }
+  }, [session]);
+
+  if (
+    !isVisible ||
+    !session?.user?.subscriptionStatus ||
+    session.user.subscriptionStatus !== "TRIALING"
+  ) {
+    return null;
+  }
+
+  // Choose style based on days left
+  let bgColor = "bg-blue-50";
+  let borderColor = "border-blue-200";
+  let textColor = "text-blue-700";
+  let message = `${daysLeft} days left in your free trial`;
+
+  if (daysLeft === 0) {
+    bgColor = "bg-red-50";
+    borderColor = "border-red-200";
+    textColor = "text-red-700";
+    message = "Your free trial has expired";
+  } else if (daysLeft !== null && daysLeft <= 3) {
+    bgColor = "bg-amber-50";
+    borderColor = "border-amber-200";
+    textColor = "text-amber-700";
+    message =
+      daysLeft === 1
+        ? "Your free trial ends today"
+        : `${daysLeft} days left in your free trial`;
+  }
+
+  return (
+    <div
+      className={`${bgColor} ${borderColor} ${textColor} border-b px-4 py-2 flex items-center justify-between`}
+    >
+      <div className="flex items-center">
+        <Clock className="h-4 w-4 mr-2" />
+        <span className="text-sm font-medium">{message}</span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Link href="/settings/billing">
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+            <CreditCard className="h-3 w-3" />
+            Upgrade Now
+          </Button>
+        </Link>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 w-7 p-0"
+          onClick={() => setIsVisible(false)}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 };
 
 interface DashboardLayoutProps {
@@ -93,7 +186,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             setSelectedLocation(locationToUse);
 
             const locationObj = data.locations.find(
-              (loc: any) => loc.id === locationToUse
+              (loc: Location) => loc.id === locationToUse
             );
             if (locationObj) {
               setSelectedLocationName(locationObj.gmbLocationName);
@@ -339,6 +432,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Trial Status Bar */}
+      <TrialStatusBar />
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar */}

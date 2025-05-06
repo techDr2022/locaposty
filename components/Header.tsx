@@ -14,7 +14,7 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <a
-              href="#"
+              href="/"
               className="text-2xl font-bold text-locaposty-primary flex items-center"
             >
               <span className="text-locaposty-secondary">Loca</span>
@@ -60,7 +60,7 @@ const Header = () => {
               Sign In
             </Button>
             <Button
-              onClick={() => router.push("/signup")}
+              onClick={() => router.push(`/signup`)}
               className="bg-locaposty-secondary text-white hover:bg-locaposty-secondary/90"
             >
               Get Started

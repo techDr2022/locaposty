@@ -4,6 +4,36 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/db";
+import { SubscriptionPlan, SubscriptionStatus } from "@/lib/generated/prisma";
+
+// Define a more complete user type for session
+type SessionUser = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionPlan?: SubscriptionPlan;
+  trialStartedAt?: Date | null;
+  trialEndsAt?: Date | null;
+  currentPeriodStart?: Date | null;
+  currentPeriodEnd?: Date | null;
+};
+
+// Define JWT token type for type safety
+type JWTToken = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  picture?: string | null;
+  sub?: string;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionPlan?: SubscriptionPlan;
+  trialStartedAt?: Date | null;
+  trialEndsAt?: Date | null;
+  currentPeriodStart?: Date | null;
+  currentPeriodEnd?: Date | null;
+};
 
 // Add a log for the database URL to check its format
 console.log(
@@ -100,7 +130,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "google" && profile?.email) {
         try {
           console.log("Looking up Google user with email:", profile.email);
-          let dbUser = await prisma.user.findUnique({
+          const dbUser = await prisma.user.findUnique({
             where: { email: profile.email },
           });
 
@@ -110,23 +140,8 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!dbUser) {
-            console.log("Creating new user from Google profile");
-            console.log("Profile data:", {
-              email: profile.email,
-              name: profile.name,
-              image: profile.image,
-            });
-
-            dbUser = await prisma.user.create({
-              data: {
-                email: profile.email,
-                name: profile.name || "Google User",
-                emailVerified: new Date(),
-                password: "",
-                image: profile.image,
-              },
-            });
-            console.log("New user created with ID:", dbUser.id);
+            console.log("User not found in database, redirecting to signup");
+            return "/login?error=UserNotFound&provider=google";
           }
 
           return true;
@@ -140,6 +155,7 @@ export const authOptions: NextAuthOptions = {
     async jwt(params) {
       console.log("JWT callback called");
       const { token, user, account } = params;
+      const jwtToken = token as JWTToken;
 
       if (account && user) {
         console.log("JWT: User from callback:", user.email);
@@ -147,6 +163,18 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { email: user.email || "" },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              subscriptionStatus: true,
+              subscriptionPlan: true,
+              trialStartedAt: true,
+              trialEndsAt: true,
+              currentPeriodStart: true,
+              currentPeriodEnd: true,
+            },
           });
 
           console.log(
@@ -156,22 +184,119 @@ export const authOptions: NextAuthOptions = {
 
           if (dbUser) {
             console.log("JWT: Setting token ID to:", dbUser.id);
-            token.id = dbUser.id;
+            // Update the token with user data including subscription info
+            jwtToken.id = dbUser.id;
+            jwtToken.name = dbUser.name;
+            jwtToken.email = dbUser.email;
+            jwtToken.picture = dbUser.image;
+            jwtToken.sub = dbUser.id;
+            jwtToken.subscriptionStatus =
+              dbUser.subscriptionStatus || undefined;
+            jwtToken.subscriptionPlan = dbUser.subscriptionPlan || undefined;
+            jwtToken.trialStartedAt = dbUser.trialStartedAt;
+            jwtToken.trialEndsAt = dbUser.trialEndsAt;
+            jwtToken.currentPeriodStart = dbUser.currentPeriodStart;
+            jwtToken.currentPeriodEnd = dbUser.currentPeriodEnd;
           }
         } catch (error) {
           console.error("Error in JWT callback:", error);
         }
+
+        // Check for trial expiration and update if necessary
+        if (
+          jwtToken.subscriptionStatus === "TRIALING" &&
+          jwtToken.trialEndsAt
+        ) {
+          try {
+            const trialEnd = new Date(jwtToken.trialEndsAt);
+            const now = new Date();
+
+            if (now > trialEnd) {
+              console.log("JWT: Trial has expired, updating status");
+
+              // Update user subscription status in database
+              await prisma.user.update({
+                where: { id: jwtToken.id },
+                data: { subscriptionStatus: "PAST_DUE" },
+              });
+
+              // Update token with new status
+              jwtToken.subscriptionStatus = "PAST_DUE";
+            }
+          } catch (error) {
+            console.error("Error checking trial expiration:", error);
+          }
+        }
       }
-      return token;
+      return jwtToken;
     },
     async session(params) {
       console.log("Session callback called");
       const { session, token } = params;
-      console.log("Session token ID:", token.id);
+      const jwtToken = token as JWTToken;
+      console.log("Session token ID:", jwtToken.id);
 
-      if (session.user && token.id) {
-        console.log("Setting session user ID to:", token.id);
-        session.user.id = token.id as string;
+      if (session.user && jwtToken.id) {
+        console.log("Setting session user ID to:", jwtToken.id);
+        session.user.id = jwtToken.id as string;
+
+        // Fetch and include subscription details in the session
+        try {
+          console.log("Fetching subscription details for user:", jwtToken.id);
+          const user = await prisma.user.findUnique({
+            where: { id: jwtToken.id as string },
+            select: {
+              subscriptionStatus: true,
+              subscriptionPlan: true,
+              trialStartedAt: true,
+              trialEndsAt: true,
+              currentPeriodStart: true,
+              currentPeriodEnd: true,
+            },
+          });
+
+          if (user) {
+            console.log("Found subscription data:", {
+              status: user.subscriptionStatus,
+              plan: user.subscriptionPlan,
+              trialEndsAt: user.trialEndsAt,
+            });
+
+            // Add subscription data to the session using type assertion
+            const sessionUser = session.user as SessionUser;
+            sessionUser.subscriptionStatus =
+              user.subscriptionStatus || undefined;
+            sessionUser.subscriptionPlan = user.subscriptionPlan || undefined;
+            sessionUser.trialStartedAt = user.trialStartedAt;
+            sessionUser.trialEndsAt = user.trialEndsAt;
+            sessionUser.currentPeriodStart = user.currentPeriodStart;
+            sessionUser.currentPeriodEnd = user.currentPeriodEnd;
+          } else {
+            console.log("No user found for ID:", jwtToken.id);
+
+            // Use token data as fallback
+            console.log("Using token data as fallback for session");
+            const sessionUser = session.user as SessionUser;
+            sessionUser.subscriptionStatus = jwtToken.subscriptionStatus;
+            sessionUser.subscriptionPlan = jwtToken.subscriptionPlan;
+            sessionUser.trialStartedAt = jwtToken.trialStartedAt;
+            sessionUser.trialEndsAt = jwtToken.trialEndsAt;
+            sessionUser.currentPeriodStart = jwtToken.currentPeriodStart;
+            sessionUser.currentPeriodEnd = jwtToken.currentPeriodEnd;
+          }
+        } catch (error) {
+          console.error("Error fetching subscription details:", error);
+
+          // Use token data as fallback on error
+          console.log("Using token data as fallback for session due to error");
+          const sessionUser = session.user as SessionUser;
+          sessionUser.subscriptionStatus = jwtToken.subscriptionStatus;
+          sessionUser.subscriptionPlan = jwtToken.subscriptionPlan;
+          sessionUser.trialStartedAt = jwtToken.trialStartedAt;
+          sessionUser.trialEndsAt = jwtToken.trialEndsAt;
+          sessionUser.currentPeriodStart = jwtToken.currentPeriodStart;
+          sessionUser.currentPeriodEnd = jwtToken.currentPeriodEnd;
+        }
       }
       return session;
     },

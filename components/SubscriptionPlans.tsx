@@ -93,7 +93,8 @@ export default function SubscriptionPlans() {
   // Start free trial - this creates a subscription with the trial period
   const startFreeTrial = async (planType: string) => {
     if (!session?.user) {
-      router.push("/login?callbackUrl=/pricing");
+      // Redirect to login with plan parameter for OAuth flow
+      router.push(`/login?plan=${planType}&callbackUrl=/dashboard`);
       return;
     }
 
@@ -118,7 +119,13 @@ export default function SubscriptionPlans() {
       setUserSubscription(result.data);
       router.push("/dashboard");
     } catch (error) {
+      console.error("Error starting trial:", error);
       setError(error instanceof Error ? error.message : "An error occurred");
+
+      // Still redirect to dashboard after a delay, even if there was an error
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 3000);
     } finally {
       setIsLoading(null);
     }

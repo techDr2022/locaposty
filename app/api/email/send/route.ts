@@ -7,7 +7,7 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const resend = new Resend(resendApiKey);
 
 // Define the from email address (should be verified in Resend)
-const fromEmail = process.env.FROM_EMAIL || "onboarding@resend.dev";
+const fromEmail = "onboarding@resend.dev";
 
 /**
  * Sends a verification email to a user
@@ -15,7 +15,7 @@ const fromEmail = process.env.FROM_EMAIL || "onboarding@resend.dev";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, name, verificationToken } = body;
+    const { email, name, verificationToken, planType } = body;
 
     if (!email || !name || !verificationToken) {
       return NextResponse.json(
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       react: VerificationEmail({
         username: name,
         verificationToken,
+        planType,
       }),
     });
 

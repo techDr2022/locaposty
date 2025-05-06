@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     // Get the token from the URL query parameters
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("token");
+    const planType = searchParams.get("plan");
 
     if (!token) {
       return NextResponse.json(
@@ -41,13 +42,15 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Redirect to the login page with success message
-    return NextResponse.redirect(
-      new URL(
-        `/login?verified=true&email=${encodeURIComponent(user.email)}`,
-        req.url
-      )
+    // Redirect to the login page with success message and optional planType
+    const redirectUrl = new URL(
+      `/login?verified=true&email=${encodeURIComponent(user.email)}${
+        planType ? `&plan=${planType}` : ""
+      }`,
+      req.url
     );
+
+    return NextResponse.redirect(redirectUrl);
   } catch (error) {
     console.error("Email verification error:", error);
     return NextResponse.json(

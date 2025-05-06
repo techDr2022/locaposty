@@ -102,13 +102,13 @@ export default function RootLayout({
       <body className={`${inter.variable} ${openSans.variable}`}>
         <Providers>
           {children}
-          <div
-            id="toast-container"
-            className="fixed top-0 left-0 p-4 z-50 text-locaposty-text-dark"
-          >
-            {/* Toast notifications will be rendered here */}
-            <Toaster />
-          </div>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 5000,
+              className: "text-locaposty-text-dark",
+            }}
+          />
         </Providers>
       </body>
     </html>
