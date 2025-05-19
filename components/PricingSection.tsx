@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, X, Loader2 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -103,12 +102,11 @@ interface PricingSectionProps {
 }
 
 const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
-  const [isAnnual, setIsAnnual] = useState(true);
   const { data: session } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [userCountry, setUserCountry] = useState<string | null>(null);
+  const [userCountry, setUserCountry] = useState<string>("IN");
 
   // Fetch user location on component mount with caching
   useEffect(() => {
@@ -152,7 +150,6 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
       description: "Perfect for small businesses just getting started",
       price: {
         monthly: userCountry === "IN" ? 2999 : 35,
-        annual: userCountry === "IN" ? 2999 * 0.8 : 35 * 0.8, // 20% discount for annual
         display: userCountry === "IN" ? "₹" : "$",
       },
       features: [
@@ -173,12 +170,11 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
       ctaColor: "bg-locaposty-primary",
     },
     {
-      name: "🏛️ Standard",
+      name: "🏛️ Premium",
       planType: "PREMIUM",
       description: "For businesses looking to grow and scale",
       price: {
         monthly: userCountry === "IN" ? 5999 : 70,
-        annual: userCountry === "IN" ? 5999 * 0.8 : 70 * 0.8, // 20% discount for annual
         display: userCountry === "IN" ? "₹" : "$",
       },
       features: [
@@ -187,7 +183,7 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
         { name: "Reports / Insights", value: true },
         { name: "Review Response Automation", value: true },
         { name: "GMB AI Assistant", value: "Tips & Suggestions" },
-        { name: "Geo-Grid Rank Tracking", value: "10 Keywords" },
+        { name: "Geo-Grid Rank Tracking", value: "Daily Tracking" },
         { name: "White-label Reports", value: false },
         { name: "Team Access", value: false },
         { name: "Turbo Post (AI Auto Scheduler)", value: false },
@@ -204,7 +200,6 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
       description: "For agencies and businesses with multiple locations",
       price: {
         monthly: userCountry === "IN" ? 12999 : 150,
-        annual: userCountry === "IN" ? 12999 * 0.8 : 150 * 0.8, // 20% discount for annual
         display: userCountry === "IN" ? "₹" : "$",
       },
       features: [
@@ -213,7 +208,7 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
         { name: "Reports / Insights", value: true },
         { name: "Review Response Automation", value: true },
         { name: "GMB AI Assistant", value: "Advanced AI Insights" },
-        { name: "Geo-Grid Rank Tracking", value: "10 Keywords" },
+        { name: "Geo-Grid Rank Tracking", value: "Daily Tracking" },
         { name: "White-label Reports", value: true },
         { name: "Team Access", value: true },
         {
@@ -368,34 +363,6 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
                 Choose the plan that works best for your business needs.
               </p>
 
-              {/* Billing toggle */}
-              <div className="flex items-center justify-center space-x-4 mb-8">
-                <span
-                  className={`text-sm font-medium ${
-                    !isAnnual
-                      ? "text-locaposty-text-dark"
-                      : "text-locaposty-text-medium"
-                  }`}
-                >
-                  Monthly
-                </span>
-                <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-                <div className="flex items-center">
-                  <span
-                    className={`text-sm font-medium ${
-                      isAnnual
-                        ? "text-locaposty-text-dark"
-                        : "text-locaposty-text-medium"
-                    }`}
-                  >
-                    Annual
-                  </span>
-                  <span className="ml-2 bg-locaposty-secondary/20 text-locaposty-secondary text-xs font-medium px-2 py-0.5 rounded">
-                    Save 20%
-                  </span>
-                </div>
-              </div>
-
               {error && (
                 <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md">
                   {error}
@@ -406,34 +373,6 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
 
           {isSignup && (
             <>
-              {/* Simplified billing toggle for signup page */}
-              <div className="flex items-center justify-center space-x-4 mb-8">
-                <span
-                  className={`text-sm font-medium ${
-                    !isAnnual
-                      ? "text-locaposty-text-dark"
-                      : "text-locaposty-text-medium"
-                  }`}
-                >
-                  Monthly
-                </span>
-                <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-                <div className="flex items-center">
-                  <span
-                    className={`text-sm font-medium ${
-                      isAnnual
-                        ? "text-locaposty-text-dark"
-                        : "text-locaposty-text-medium"
-                    }`}
-                  >
-                    Annual
-                  </span>
-                  <span className="ml-2 bg-locaposty-secondary/20 text-locaposty-secondary text-xs font-medium px-2 py-0.5 rounded">
-                    Save 20%
-                  </span>
-                </div>
-              </div>
-
               {error && (
                 <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md">
                   {error}
@@ -480,19 +419,9 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
                       }`}
                     >
                       <div className="font-bold text-lg">
-                        {renderPrice(
-                          isAnnual
-                            ? Math.round(plan.price.annual)
-                            : plan.price.monthly,
-                          plan.price.display
-                        )}
+                        {renderPrice(plan.price.monthly, plan.price.display)}
                         /mo
                       </div>
-                      {isAnnual && (
-                        <div className="mt-1 text-xs text-green-600 font-medium">
-                          Save 20% annually
-                        </div>
-                      )}
                     </td>
                   ))}
                 </tr>
@@ -561,29 +490,14 @@ const PricingSection = ({ isSignup = false }: PricingSectionProps) => {
                   </p>
                   <div className="mt-4">
                     <span className="text-4xl font-bold text-locaposty-text-dark">
-                      {renderPrice(
-                        isAnnual
-                          ? Math.round(plan.price.annual)
-                          : plan.price.monthly,
-                        plan.price.display
-                      )}
+                      {renderPrice(plan.price.monthly, plan.price.display)}
                     </span>
                     <span className="text-locaposty-text-medium">/month</span>
                   </div>
                   <div className="text-sm text-locaposty-text-medium mt-1">
-                    {renderPrice(
-                      isAnnual
-                        ? Math.round(plan.price.annual)
-                        : plan.price.monthly,
-                      plan.price.display
-                    )}
+                    {renderPrice(plan.price.monthly, plan.price.display)}
                     /month
                   </div>
-                  {isAnnual && (
-                    <div className="mt-1 text-sm text-green-600 font-medium">
-                      Save 20% with annual billing
-                    </div>
-                  )}
                 </div>
 
                 <ul className="space-y-4 mb-8">
